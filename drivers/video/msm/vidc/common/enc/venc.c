@@ -1784,8 +1784,10 @@ static long vid_enc_ioctl(struct file *file,
 	{
 		struct vcd_property_hdr vcd_property_hdr;
 		struct venc_plusptype plusptype;
-		u32 enable;
+		u32 enable = 1;
 		u32 vcd_status = VCD_ERR_FAIL;
+		memset((void *)&plusptype, 0,
+			sizeof(struct venc_plusptype));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (copy_from_user(&plusptype, venc_msg.in,
@@ -1807,6 +1809,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_LTRMODE:
 	{
 		struct venc_ltrmode encoder_ltrmode;
+		memset((void *)&encoder_ltrmode, 0,
+			sizeof(struct venc_ltrmode));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (cmd == VEN_IOCTL_SET_LTRMODE) {
@@ -1836,6 +1840,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_LTRCOUNT:
 	{
 		struct venc_ltrcount encoder_ltrcount;
+		memset((void *)&encoder_ltrcount, 0,
+			sizeof(struct venc_ltrcount));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (cmd == VEN_IOCTL_SET_LTRCOUNT) {
@@ -1866,6 +1872,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_LTRPERIOD:
 	{
 		struct venc_ltrperiod encoder_ltrperiod;
+		memset((void *)&encoder_ltrperiod, 0,
+			sizeof(struct venc_ltrperiod));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (cmd == VEN_IOCTL_SET_LTRPERIOD) {
@@ -1895,6 +1903,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_CAPABILITY_LTRCOUNT:
 	{
 		struct venc_range venc_capltrcount;
+		memset((void *)&venc_capltrcount, 0,
+			sizeof(struct venc_range));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		DBG("VEN_IOCTL_GET_CAPABILITY_LTRCOUNT\n");
@@ -1914,6 +1924,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_LTRUSE:
 	{
 		struct venc_ltruse encoder_ltruse;
+		memset((void *)&encoder_ltruse, 0,
+			sizeof(struct venc_ltruse));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (cmd == VEN_IOCTL_SET_LTRUSE) {
