@@ -1165,6 +1165,14 @@ static int adreno_iommu_setstate(struct kgsl_device *device,
 
 	cmds = link;
 
+	link = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (link == NULL) {
+		result = -ENOMEM;
+		goto done;
+	}
+
+	cmds = link;
+
 	result = kgsl_mmu_enable_clk(&device->mmu, KGSL_IOMMU_CONTEXT_USER);
 
 	if (result)
