@@ -445,9 +445,15 @@ static void wakeup_source_activate(struct wakeup_source *ws)
         }
 
 	if (!enable_si_ws && !strcmp(ws->name, "sensor_ind")) {
-		pr_info("wakeup source sensor_ind activate skipped\n");
+		pr_debug("wakeup source sensor_ind activate skipped\n");
 		return;
 	}
+
+	if (!enable_msm_hsic_ws && !strcmp(ws->name, "msm_hsic_host")) {
+                pr_debug("wakeup source msm_hsic_host activate skipped\n");
+                return;
+        }
+
 	/*
 	 * active wakeup source should bring the system
 	 * out of PM_SUSPEND_FREEZE state
