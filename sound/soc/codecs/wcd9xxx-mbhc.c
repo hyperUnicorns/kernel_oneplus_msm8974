@@ -3213,8 +3213,8 @@ static void wcd9xxx_correct_swch_plug(struct work_struct *work)
 							    SND_JACK_LINEOUT);
 				}
 			} else if (mbhc->current_plug == PLUG_TYPE_NONE) {
-				wcd9xxx_report_plug(mbhc, 1,
-						    SND_JACK_HEADPHONE);
+					wcd9xxx_report_plug(mbhc, 1,
+							    SND_JACK_HEADPHONE);
 			}
 			WCD9XXX_BCL_UNLOCK(mbhc->resmgr);
 		} else {
