@@ -224,6 +224,91 @@
 #define CHG_FLAGS_VCP_WA		BIT(0)
 #define BOOST_FLASH_WA			BIT(1)
 #define POWER_STAGE_WA			BIT(2)
+#ifdef CONFIG_MACH_MSM8974_14001
+#define BATT_HEARTBEAT_INTERVAL					40000//40S
+#define BATT_CHG_TIMEOUT_COUNT_DCP				10*10*60//sjc1125//6*10*60//4	//6HOURS
+#define BATT_CHG_TIMEOUT_COUNT_USB_PRO			10*10*60 //10HOURS
+#define BATT_CHG_DONE_CHECK_COUNT				10//TIMES
+#define CHARGER_SOFT_OVP_VOLTAGE		5800//mv
+#define CHARGER_SOFT_UVP_VOLTAGE		4300
+#define CHARGER_VOLTAGE_NORMAL		5000
+#define BATTERY_SOFT_OVP_VOLTAGE		4500 * 1000
+#define MSM_CHARGER_GAUGE_MISSING_VOLTS 3500*1000
+#define AUTO_CHARGING_BATT_TEMP_T0                           -100 
+#define AUTO_CHARGING_BATT_TEMP_T1                            0    
+#define AUTO_CHARGING_BATT_TEMP_T2                            30 /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+#define AUTO_CHARGING_BATT_TEMP_T3							  70 /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+#define AUTO_CHARGING_BATT_TEMP_T4                            450  /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+#define AUTO_CHARGING_BATT_TEMP_T5                            550  /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+#define AUTO_CHARGING_BATT_REMOVE_TEMP                        -400 
+#define AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_HOT_TO_WARM      40
+#define AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_WARM_TO_NORMAL   30
+#define AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL   10
+#define AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COLD_TO_COOL     30
+
+
+enum chg_charger_status_type {
+	/* The charger is good      */
+	CHARGER_STATUS_GOOD,
+	/* The charger is bad       */
+	CHARGER_STATUS_BAD,
+	/* The charger is weak      */
+	CHARGER_STATUS_WEAK,
+	CHARGER_STATUS_OVER,
+	/* Invalid charger status.  */
+	CHARGER_STATUS_INVALID
+};
+
+enum chg_battery_status_type {
+	/* The battery is good        */
+	BATTERY_STATUS_GOOD,
+	/* The battery is cold/hot    */
+	BATTERY_STATUS_BAD_TEMP,
+	/* The battery is bad         */
+	BATTERY_STATUS_BAD,
+	/* The battery is removed     */
+	BATTERY_STATUS_REMOVED,		/* on v2.2 only */
+	BATTERY_STATUS_INVALID_v1 = BATTERY_STATUS_REMOVED,
+	/* Invalid battery status.    */
+	BATTERY_STATUS_INVALID
+};
+#ifndef CONFIG_MACH_MSM8974_14001
+//Fuchun.Liao@Mobile.BSP.CHG 2015-01-04 move it to qpnp-charger.h for bq27541 to use
+typedef enum   
+{
+    /*! Battery is cold               */
+    CV_BATTERY_TEMP_REGION__COLD,
+    /*! Battery is little cold               */
+    CV_BATTERY_TEMP_REGION_LITTLE__COLD,
+    /*! Battery is cool               */
+    CV_BATTERY_TEMP_REGION__COOL,
+     /*! Battery is little cool               */
+    CV_BATTERY_TEMP_REGION__LITTLE_COOL,
+    /*! Battery is normal             */
+    CV_BATTERY_TEMP_REGION__NORMAL,
+    /*! Battery is warm               */
+    CV_BATTERY_TEMP_REGION__WARM,
+    /*! Battery is hot                */
+    CV_BATTERY_TEMP_REGION__HOT,
+    /*! Invalid battery temp region   */
+    CV_BATTERY_TEMP_REGION__INVALID,
+}chg_cv_battery_temp_region_type;
+#endif
+
+static bool use_fake_temp = false;
+static int fake_temp = 300;
+static bool use_fake_chgvol = false;
+static int fake_chgvol = 0;
+#endif
+/* OPPO 2013-06-08 wangjc Add end */
+
+#ifdef CONFIG_BATTERY_BQ27541
+static struct qpnp_battery_gauge *qpnp_batt_gauge = NULL;
+#endif /*CONFIG_BATTERY_BQ27541*/
+
+#ifdef CONFIG_BQ24196_CHARGER
+static struct qpnp_external_charger *qpnp_ext_charger = NULL;
+#endif /*CONFIG_BQ24196_CHARGER*/
 
 struct qpnp_chg_irq {
 	int		irq;
@@ -1588,6 +1673,213 @@ qpnp_chg_set_appropriate_vddmax(struct qpnp_chg_chip *chip)
 				chip->delta_vddmax_mv);
 }
 
+#else
+#ifdef CONFIG_BATTERY_BQ27541
+static int
+get_prop_battery_cc(struct qpnp_chg_chip *chip)//sjc20150105
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_batt_cc)
+		return qpnp_batt_gauge->get_batt_cc();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+get_prop_battery_fcc(struct qpnp_chg_chip *chip)//sjc20150105
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_batt_fcc)
+		return qpnp_batt_gauge->get_batt_fcc();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+//wangjc add for authentication
+static int
+get_prop_authenticate(struct qpnp_chg_chip *chip)
+{
+	return true;
+}
+#endif /*CONFIG_BATTERY_BQ27541*/
+
+/* OPPO 2013-12-22 liaofuchun add for fastchg*/
+#ifdef CONFIG_PIC1503_FASTCG
+static int
+get_prop_fast_chg_started(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+
+static int
+get_prop_fast_switch_to_normal(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->fast_switch_to_normal)
+		return qpnp_batt_gauge->fast_switch_to_normal();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+static int
+set_fast_switch_to_normal_false(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->set_switch_to_noraml_false)
+		return qpnp_batt_gauge->set_switch_to_noraml_false();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+qpnp_get_fast_low_temp_full(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_fast_low_temp_full)
+		return qpnp_batt_gauge->get_fast_low_temp_full();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+
+static int
+qpnp_set_fast_low_temp_full_false(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->set_low_temp_full_false)
+		return qpnp_batt_gauge->set_low_temp_full_false();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+get_prop_fast_normal_to_warm(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->fast_normal_to_warm)
+		return qpnp_batt_gauge->fast_normal_to_warm();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+static int
+set_fast_normal_to_warm_false(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->set_normal_to_warm_false)
+		return qpnp_batt_gauge->set_normal_to_warm_false();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+qpnp_set_fast_chg_allow(struct qpnp_chg_chip *chip,int enable)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->set_fast_chg_allow)
+		return qpnp_batt_gauge->set_fast_chg_allow(enable);
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+qpnp_get_fast_chg_allow(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_fast_chg_allow)
+		return qpnp_batt_gauge->get_fast_chg_allow();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+qpnp_get_fast_chg_ing(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_fast_chg_ing)
+		return qpnp_batt_gauge->get_fast_chg_ing();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+#else
+static int
+get_prop_fast_chg_started(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+
+static int
+get_prop_fast_switch_to_normal(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+
+static int
+get_prop_fast_normal_to_warm(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+
+static int
+qpnp_get_fast_chg_ing(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+#endif
+/* OPPO 2013-12-12 liaofuchun add end*/
+
+
+static int
+qpnp_chg_vddmax_set(struct qpnp_chg_chip *chip, int voltage)
+{
+	if (voltage < QPNP_CHG_VDDMAX_MIN
+			|| voltage > QPNP_CHG_V_MAX_MV) {
+		pr_err("bad mV=%d asked to set\n", voltage);
+		return -EINVAL;
+	}
+
+	//wangjc add for authentication
+#ifdef CONFIG_BATTERY_BQ27541
+	if(!get_prop_authenticate(chip)) {
+		if(voltage > 4200) {
+			voltage = 4200;
+		}
+	}
+#endif
+
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_vddmax_set)
+		return qpnp_ext_charger->chg_vddmax_set(voltage);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+
+static void
+qpnp_chg_set_appropriate_vddmax(struct qpnp_chg_chip *chip)
+{
+	if(chip->mBatteryTempRegion == CV_BATTERY_TEMP_REGION_LITTLE__COLD)
+		qpnp_chg_vddmax_set(chip,4000);
+	else if(chip->mBatteryTempRegion == CV_BATTERY_TEMP_REGION__COOL)
+		qpnp_chg_vddmax_set(chip,chip->cool_bat_mv); /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+	else if(chip->mBatteryTempRegion == CV_BATTERY_TEMP_REGION__COOL)
+		qpnp_chg_vddmax_set(chip,chip->little_cool_bat_mv); /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+	else if(chip->mBatteryTempRegion == CV_BATTERY_TEMP_REGION__WARM)
+		qpnp_chg_vddmax_set(chip,chip->warm_bat_mv);
+	else
+		qpnp_chg_vddmax_set(chip, chip->max_voltage_mv);
+}
+#endif /*CONFIG_MACH_MSM8974_14001*/
+
 static void
 qpnp_usbin_health_check_work(struct work_struct *work)
 {
@@ -2783,6 +3075,14 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = get_prop_batt_status(chip);
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add begin for  sync with KK charge standard  */
+		if (val->intval == POWER_SUPPLY_STATUS_FULL
+				&& (qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__LITTLE_COOL
+				|| qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__NORMAL)
+				&& get_prop_capacity(chip) < 95) {//sjc20150104
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		}
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add end for  sync with KK charge standard  */
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		val->intval = get_prop_charge_type(chip);
