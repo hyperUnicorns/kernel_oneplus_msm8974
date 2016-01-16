@@ -2833,6 +2833,60 @@ get_prop_batt_status(struct qpnp_chg_chip *chip)
 	return POWER_SUPPLY_STATUS_DISCHARGING;
 }
 
+#else
+static int
+get_prop_batt_status(struct qpnp_chg_chip *chip)
+{
+	int status;
+/* OPPO 2013-12-22 liaofuchun add for fastchg*/
+#ifdef CONFIG_PIC1503_FASTCG
+	if(get_prop_fast_chg_started(chip) == true)
+		return POWER_SUPPLY_STATUS_CHARGING;
+#endif	
+/* OPPO 2013-12-22 liaofuchun add end*/
+	if (qpnp_chg_is_usb_chg_plugged_in(chip) && chip->chg_display_full) {//wangjc add for charge full
+		return POWER_SUPPLY_STATUS_FULL;
+	}
+
+#ifdef CONFIG_MACH_MSM8974_14001
+/* jingchun.wang@Onlinerd.Driver, 2014/01/22  Add for it report bad status when plug out battery */
+	if(get_prop_batt_temp(chip) <= AUTO_CHARGING_BATT_REMOVE_TEMP) {
+		return POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+#endif /*CONFIG_MACH_MSM8974_14001*/
+
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_get_system_status)
+		status = qpnp_ext_charger->chg_get_system_status();
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+
+	if((status & 0x30) == 0x10) {
+		return POWER_SUPPLY_STATUS_CHARGING;
+	} else if((status & 0x30) == 0x20) {
+		return POWER_SUPPLY_STATUS_CHARGING;
+	} else if((status & 0x30) == 0x30) {
+#ifndef CONFIG_MACH_MSM8974_14001
+/* jingchun.wang@Onlinerd.Driver, 2014/02/12  Modify for msjudge full status */
+		return POWER_SUPPLY_STATUS_FULL;
+#else /*CONFIG_MACH_MSM8974_14001*/
+		return POWER_SUPPLY_STATUS_CHARGING;
+#endif /*CONFIG_MACH_MSM8974_14001*/
+	}else {
+		return POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+}
+
+int qpnp_get_charging_status(void)//sjc20150104
+{
+	if (!g_chip) 
+		return POWER_SUPPLY_STATUS_DISCHARGING;
+	return get_prop_batt_status(g_chip);
+}
+#endif
+/* OPPO 2013-10-18 wangjc Modify end */
+
 static int
 get_prop_current_now(struct qpnp_chg_chip *chip)
 {
