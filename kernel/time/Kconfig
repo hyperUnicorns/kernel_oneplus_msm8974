@@ -38,6 +38,23 @@ config GENERIC_CLOCKEVENTS_BUILD
 config ARCH_HAS_TICK_BROADCAST
 	bool
 
+# Clockevents broadcasting infrastructure
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	depends on GENERIC_CLOCKEVENTS
+
+# Automatically adjust the min. reprogramming time for
+# clock event device
+config GENERIC_CLOCKEVENTS_MIN_ADJUST
+	bool
+
+# Generic update of CMOS clock
+config GENERIC_CMOS_UPDATE
+	bool
+
+if GENERIC_CLOCKEVENTS
+menu "Timers subsystem"
+
 # Core internal switch. Selected by NO_HZ / HIGH_RES_TIMERS. This is
 # only related to the tick functionality. Oneshot clockevent devices
 # are supported independ of this.
@@ -66,6 +83,5 @@ config GENERIC_CLOCKEVENTS_BUILD
 	bool
 	default y
 	depends on GENERIC_CLOCKEVENTS
-
-config GENERIC_CLOCKEVENTS_MIN_ADJUST
-	bool
+endmenu
+endif
