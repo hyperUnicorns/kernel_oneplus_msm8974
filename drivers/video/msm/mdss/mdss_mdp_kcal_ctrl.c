@@ -34,7 +34,7 @@
 #define KCAL_BLUE	0xF5	// 245
 #define KCAL_SAT	0x106	// 262 / 38 (KA)
 
-static int kcal_fix_yellow = 0;
+static int kcal_fix_yellow = 1;
 
 struct kcal_lut_data {
 	int red;
