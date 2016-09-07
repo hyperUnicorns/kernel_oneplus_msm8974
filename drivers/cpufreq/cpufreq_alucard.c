@@ -35,7 +35,11 @@
  */
 
 /* Tuning Interface */
+#ifdef CONFIG_MACH_LGE
 #define FREQ_RESPONSIVENESS		2457600
+#else
+#define FREQ_RESPONSIVENESS		2457600
+#endif
 
 #define CPUS_DOWN_RATE			2
 #define CPUS_UP_RATE			1
@@ -74,7 +78,6 @@ struct cpufreq_alucard_cpuinfo {
 	unsigned int cpu;
 	unsigned int min_index;
 	unsigned int max_index;
-	unsigned int prev_load;
 	/*
 	 * mutex that serializes governor limit change with
 	 * do_alucard_timer invocation. We do not want do_alucard_timer to run
@@ -502,12 +505,11 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 	int pump_inc_step = this_alucard_cpuinfo->pump_inc_step;
 	int pump_dec_step = this_alucard_cpuinfo->pump_dec_step;
 	unsigned int cur_load = 0;
-	unsigned int max_load_freq  = 0;
+	unsigned int max_load_freq = 0;
 	unsigned int cpus_up_rate = alucard_tuners_ins.cpus_up_rate;
 	unsigned int cpus_down_rate = alucard_tuners_ins.cpus_down_rate;
 	unsigned int index = 0;
 	unsigned int j;
-	unsigned int sampling_rate = alucard_tuners_ins.sampling_rate;
 
 	policy = this_alucard_cpuinfo->cur_policy;
 	if (!policy)
@@ -538,50 +540,9 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 		if (unlikely(!wall_time || wall_time < idle_time))
 			continue;
 
-		/*
-		 * If the CPU had gone completely idle, and a task just woke up
-		 * on this CPU now, it would be unfair to calculate 'load' the
-		 * usual way for this elapsed time-window, because it will show
-		 * near-zero load, irrespective of how CPU intensive that task
-		 * actually is. This is undesirable for latency-sensitive bursty
-		 * workloads.
-		 *
-		 * To avoid this, we reuse the 'load' from the previous
-		 * time-window and give this task a chance to start with a
-		 * reasonably high CPU frequency. (However, we shouldn't over-do
-		 * this copy, lest we get stuck at a high load (high frequency)
-		 * for too long, even when the current system load has actually
-		 * dropped down. So we perform the copy only once, upon the
-		 * first wake-up from idle.)
-		 *
-		 * Detecting this situation is easy: the governor's deferrable
-		 * timer would not have fired during CPU-idle periods. Hence
-		 * an unusually large 'wall_time' (as compared to the sampling
-		 * rate) indicates this scenario.
-		 *
-		 * prev_load can be zero in two cases and we must recalculate it
-		 * for both cases:
-		 * - during long idle intervals
-		 * - explicitly set to zero
-		 */
-		if (unlikely(wall_time > (2 * sampling_rate) &&
-			     j_alucard_cpuinfo->prev_load)) {
-			cur_load = j_alucard_cpuinfo->prev_load;
-
-			/*
-			 * Perform a destructive copy, to ensure that we copy
-			 * the previous load only once, upon the first wake-up
-			 * from idle.
-			 */
-			j_alucard_cpuinfo->prev_load = 0;
-		} else {
-			cur_load = 100 * (wall_time - idle_time) / wall_time;
-			j_alucard_cpuinfo->prev_load = cur_load;
-		}
+		cur_load = 100 * (wall_time - idle_time) / wall_time;
 
 		freq_avg = __cpufreq_driver_getavg(policy, j);
-		if (policy == NULL)
-			return;
 		if (freq_avg <= 0)
 			freq_avg = policy->cur;
 
@@ -603,7 +564,7 @@ static void alucard_check_cpu(struct cpufreq_alucard_cpuinfo *this_alucard_cpuin
 	if (!policy)
 		return;
 	/* Check for frequency increase or for frequency decrease */
-	if (max_load_freq >= (inc_cpu_load * policy->cur)
+	if (max_load_freq >= (inc_cpu_load * policy->cur) 
 		 && index < this_alucard_cpuinfo->max_index) {
 		if (this_alucard_cpuinfo->up_rate % cpus_up_rate == 0) {
 			if ((index + pump_inc_step) <= this_alucard_cpuinfo->max_index)
@@ -657,10 +618,6 @@ static void do_alucard_timer(struct work_struct *work)
 		container_of(work, struct cpufreq_alucard_cpuinfo, work.work);
 	int delay;
 
-	if (unlikely(!cpu_online(this_alucard_cpuinfo->cpu) ||
-				!this_alucard_cpuinfo->cur_policy))
-		return;
-
 	mutex_lock(&this_alucard_cpuinfo->timer_mutex);
 
 	alucard_check_cpu(this_alucard_cpuinfo);
@@ -688,7 +645,7 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if ((!cpu_online(cpu)) || (!policy))
+		if (!policy)
 			return -EINVAL;
 
 		mutex_lock(&alucard_mutex);
@@ -702,16 +659,9 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 
 		for_each_cpu(j, policy->cpus) {
 			struct cpufreq_alucard_cpuinfo *j_alucard_cpuinfo = &per_cpu(od_alucard_cpuinfo, j);
-			unsigned int prev_load;
 
 			j_alucard_cpuinfo->prev_cpu_idle = get_cpu_idle_time(j,
 				&j_alucard_cpuinfo->prev_cpu_wall, 0);
-
-			prev_load = (unsigned int)
-				(j_alucard_cpuinfo->prev_cpu_wall -
-				j_alucard_cpuinfo->prev_cpu_idle);
-			j_alucard_cpuinfo->prev_load = 100 * prev_load /
-				(unsigned int) j_alucard_cpuinfo->prev_cpu_wall;
 		}
 
 		alucard_enable++;
@@ -728,11 +678,10 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 				return rc;
 			}
 		}
-		cpu = policy->cpu;
 		this_alucard_cpuinfo->cpu = cpu;
 		this_alucard_cpuinfo->cur_policy = policy;
-		this_alucard_cpuinfo->up_rate = 2;
-		this_alucard_cpuinfo->down_rate = 2;
+		this_alucard_cpuinfo->up_rate = 1;
+		this_alucard_cpuinfo->down_rate = 1;
 		this_alucard_cpuinfo->governor_enabled = true;
 		mutex_unlock(&alucard_mutex);
 
