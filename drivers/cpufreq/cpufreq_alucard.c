@@ -58,7 +58,7 @@
 
 /* sample rate */
 #define MIN_SAMPLING_RATE		10000
-#define SAMPLING_RATE			50000
+#define SAMPLING_RATE			100000
 
 static void do_alucard_timer(struct work_struct *work);
 
